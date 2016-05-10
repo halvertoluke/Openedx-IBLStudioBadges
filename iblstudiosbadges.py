@@ -3,6 +3,9 @@
 import pkg_resources
 import datetime
 
+from django.template import Context, Template
+from django.utils.translation import ugettext_lazy as _
+
 # from xblock.fields import Integer, Scope, String, Any, Boolean, Dict
 from xblock.core import XBlock
 from xblock.fields import Scope, Integer, String
@@ -21,20 +24,32 @@ class IBLstudiosbadges(XBlock):
 	xblock_name_field	= 'iblstudiosbadges'
 	
 	## general data
-	display_name		= String(display_name="Display Name", default="Consigue tu insignia", scope=Scope.settings, help="Name of the component in the edxplatform")
-	form_text			= String(display_name="text_desc", default=" ", scope=Scope.content, help="Badge text description")	
-	congratulations_text= String(display_name="congratulations_desc", default=" ", scope=Scope.content, help="Congratulations text description")	
-	enough_text			= String(display_name="enough_desc", default=" ", scope=Scope.content, help="Not-enough-score text description")	
-	bg_id				= String(display_name="id", default="1", scope=Scope.content, help="Id of the Badge")	
-	n_course_id			= String(display_name="CourseId", default="0", scope=Scope.user_state, help="Id of teh current course")	
-	n_user_id			= String(display_name="UserId", default="0", scope=Scope.user_state, help="Id of the current user")	
-	user_score			= String(display_name="UserScore", default="0", scope=Scope.user_state, help="Current section user score")	
-	required_score		= String(display_name="RequiredScore", default="50", scope=Scope.content, help="Requireds core")	
-	debug_mode			= String(display_name="debug", default="0", scope=Scope.content, help="Enable debug mode")	
-	
+	display_name		= String(display_name=_("Display Name"), default=_("Get your badge"), scope=Scope.settings, help=_("Name of the component in the edxplatform"))
+	form_text			= String(display_name=_("Badge description"), default=" ", scope=Scope.content, help=_("Badge text description"))
+	congratulations_text= String(display_name=_("Congratulations text"), default=" ", scope=Scope.content, help=_("Congratulations text"))
+	enough_text			= String(display_name=_("Not-enough-score text"), default=" ", scope=Scope.content, help=_("Not-enough-score text"))	
+	bg_id				= String(display_name=_("Badge ID"), default="1", scope=Scope.content, help=_("The Badge ID"))
+	n_course_id			= String(display_name=_("CourseId"), default="0", scope=Scope.user_state, help=_("Id of teh current course"))
+	n_user_id			= String(display_name=_("UserId"), default="0", scope=Scope.user_state, help=_("Id of the current user"))
+	user_score			= String(display_name=_("UserScore"), default="0", scope=Scope.user_state, help=_("Current section user score"))
+	required_score		= String(display_name=_("Required score"), default="50", scope=Scope.content, help=_("% score required to claim"))
+	debug_mode			= String(display_name=_("Debug mode"), default="0", scope=Scope.content, help=_("0 disabled - 1 enabled"))
+
+	scope_score = String(display_name=_("Scope"),
+		       default=_("Section"),
+		       scope=Scope.settings,
+		       help=_("Define the badge evaluation's scope"),
+		       values=[
+				{"display_name": _("Course"), "value": "Course"},
+				{"display_name": _("Section"), "value": "Section"},
+				{"display_name": _("Subsection"), "value": "Subsection"},
+				{"display_name": _("Unit"), "value": "Unit"}
+			     ]
+		       )
+
 	## provider data
-	claim_prov_usr			= String(display_name="ProviderUSER", default="ibldemo-8CaZSS", scope=Scope.content, help="Badge provider user")
-	claim_prov_pwd			= String(display_name="ProviderPass", default="4c46d8a1-70b4-43d9-87da-cdf06b049bea", scope=Scope.content, help="Badge provider pass")
+	claim_prov_usr			= String(display_name=_("Provider user"), default="depusuarios.ite@gmail.com-VX99ln", scope=Scope.content, help=_("The Badge provider account username"))
+	claim_prov_pwd			= String(display_name=_("Provider password"), default="oN9ytPFu-7vHr-i478-vc8Y-nOZoAuC0snnX", scope=Scope.content, help=_("The Badge provider account password"))
 
 	claim_prov_url			= "http://insignias.educalab.es" 
 	claim_prov_url_token	= claim_prov_url+'/api/token.php' 
@@ -83,11 +98,11 @@ class IBLstudiosbadges(XBlock):
 		Test course data tree
 		"""
 		# Mongo DB Connect
-		from pymongo import Connection
-		xmoduledb = "edxapp"
-		connection = Connection()
-		db = connection[xmoduledb]
-		mongo_modulestore = db['modulestore']
+		# from pymongo import Connection
+		# xmoduledb = "edxapp"
+		# connection = Connection()
+		# db = connection[xmoduledb]
+		# mongo_modulestore = db['modulestore']
 		self.claim_db_course_id	= ''
 		if self.claim_db_user_course!='None':
 			self.claim_db_course_id	= self.claim_db_user_course
@@ -123,13 +138,12 @@ class IBLstudiosbadges(XBlock):
 					print self.claim_prov_usr
 					print self.claim_prov_pwd
 			else:
-				self.claim_badge_errors = 'Could not connect to provider. Please, verify your credentials.'
+				self.claim_badge_errors = _('Could not connect to provider. Please, verify your credentials.')
 
 		"""
 		The primary view for the students
 		"""
 		self.claim_data = ""
-		
 		if self.claim_badge_errors == "":
 			if self.debug_mode == "1":
 				html = self.resource_string("static/html/debug.html")
@@ -210,11 +224,15 @@ class IBLstudiosbadges(XBlock):
 		xmoduledb = "edxapp"
 		connection = Connection()
 		db_mongo = connection[xmoduledb]
-		mongo_modulestore = db_mongo['modulestore']
-		badge_list_problems = edxappCourseData.getListProblemsFromBadgeId(mongo_modulestore,self.bg_id,course_id, self.xblock_name_field)
-		badge_problems_score = edxappCourseData.getScoreFromBadgeId(mongo_modulestore,self.bg_id,course_id,  self.xblock_name_field)
+		if course_id.startswith('course-v1:'):
+			mongo_modulestore = db_mongo['modulestore.active_versions']
+			badge_list_problems = edxappCourseData.getListProblemsFromBadgeIdDogwood(mongo_modulestore,self.bg_id,course_id,self.xblock_name_field,self.scope_score)
+			badge_problems_score = edxappCourseData.getScoreFromBadgeIdDogwood(mongo_modulestore,self.bg_id,course_id,self.xblock_name_field,self.scope_score)
+		else:
+			mongo_modulestore = db_mongo['modulestore']
+			badge_list_problems = edxappCourseData.getListProblemsFromBadgeId(mongo_modulestore,self.bg_id,course_id, self.xblock_name_field)
+			badge_problems_score = edxappCourseData.getScoreFromBadgeId(mongo_modulestore,self.bg_id,course_id,  self.xblock_name_field)
 		""" """
-
 		#calculate badge_score
 		user_score = 0
 		partial_user_score = []
@@ -251,13 +269,61 @@ class IBLstudiosbadges(XBlock):
 		return results
 
 
+	@staticmethod
+	def _resource(path):
+		"""
+		Metodo para obtener un recurso a partir de un path.
+		"""
+		data = pkg_resources.resource_string(__name__, path)
+		return data.decode("utf8")
+
+
+	@staticmethod
+	def _render_template(template_path, context):
+		"""
+		Funciona para renderizar un html utilizando las etiquetas que
+		proporciona Django para los templates.
+		"""
+		template_str = IBLstudiosbadges._resource(template_path)
+		template = Template(template_str)
+		return template.render(Context(context))
+
+
 	# studio_view
 	def studio_view(self, context=None):
 		"""
 		The primary view for Studio
 		"""
-		html = self.resource_string("static/html/studio_view_edit.html")
-		frag = Fragment(html.format(self=self))
+		#html = self.resource_string("static/html/studio_view_edit.html")
+		#frag = Fragment(html.format(self=self))
+		#frag.add_css(self.resource_string("static/css/style.css"))
+		#frag.add_javascript(self.resource_string("static/js/src/studio_view_edit.js"))
+		#frag.initialize_js('StudentEditBadge')
+		#return frag
+
+		cls = type(self)
+
+		def none_to_empty(data):
+			return data if data is not None else ''
+
+		edit_fields = (
+			(field, none_to_empty(getattr(self, field.name)), validator, values)
+			for field, validator, values in (
+                                (cls.claim_prov_usr, "string", cls.claim_prov_usr.values),
+                                (cls.claim_prov_pwd, "string", cls.claim_prov_pwd.values),
+                                (cls.bg_id, "string", cls.bg_id.values),
+				(cls.form_text, "string", cls.form_text.values),
+				(cls.congratulations_text, "string", cls.congratulations_text.values),
+				(cls.enough_text, "string", cls.enough_text.values),
+                                (cls.scope_score, "list", cls.scope_score.values),
+				(cls.required_score, "string", cls.required_score.values),
+				(cls.debug_mode, "string", cls.debug_mode.values)
+			)
+		)
+		context = {'fields': edit_fields}
+		
+		frag = Fragment()
+		frag.add_content(self._render_template("static/html/studio_view_edit.html", context))
 		frag.add_css(self.resource_string("static/css/style.css"))
 		frag.add_javascript(self.resource_string("static/js/src/studio_view_edit.js"))
 		frag.initialize_js('StudentEditBadge')
@@ -304,6 +370,7 @@ class IBLstudiosbadges(XBlock):
 		self.required_score = data['required_score']
 		self.claim_prov_usr = data['badge_pro_user']
 		self.claim_prov_pwd = data['badge_pro_pwd']
+		self.scope_score = data['scope_score']
 		return { 'result': 'success' }
 
 

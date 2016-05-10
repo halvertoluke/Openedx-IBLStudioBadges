@@ -1,6 +1,7 @@
 #
 #
 import sys
+from django.utils.translation import ugettext as _
 
 # ----------------
 # COMMON FUNCTIONS
@@ -88,16 +89,18 @@ def get_file_template(filename):
 def show_common_action_result_formatted(strres):
 	result =''
 	if strres != 'error':
+		success = _("Action is been correctly processed")
+                error_action = _("Error: The action could not be performed")
 		result =''
 		result  ='<div class="alert alert-success col-lg-12">'
 		result +='<div class="col-lg-2"><img src="/media/logo.png" class="img-responsive" style="width:100px; height:100px"></div>'
-		result +='<div class="col-lg-10"><h1><i class="fa fa-check-square-o"></i> Action is been correctly processed</h1></div>'
+		result +='<div class="col-lg-10"><h1><i class="fa fa-check-square-o"></i>"%s"</h1></div>' % success
 		result +='</div>'
 	else:
 		result =''
 		result  ='<div class="alert alert-danger col-lg-12">'
 		result +='<div class="col-lg-2"><img src="/media/logo.png" class="img-responsive" style="width:100px; height:100px"></div>'
-		result +='<div class="col-lg-10"><h1><i class="fa fa-exclamation-triangle"></i> Error: The action could not be performed</h1></div>'
+		result +='<div class="col-lg-10"><h1><i class="fa fa-exclamation-triangle"></i>"%s"</h1></div>' % error_action
 		result +='</div>'
 	return result
 

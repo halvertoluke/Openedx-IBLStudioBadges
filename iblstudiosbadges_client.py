@@ -1,5 +1,5 @@
 
-
+from django.utils.translation import ugettext as _
 import sys
 import os
 import requests
@@ -203,6 +203,7 @@ def build_badge_form(f_claim_name,f_claim_mail,f_form_text,obj_sel_badge):
                 f_claim_s_last_name = '.'
     # Preview the badge to be claim
     form  = iblstudiosbadges_client.build_badge_preview(obj_sel_badge)
+    claim_button = _("CLAIM YOUR BADGE") 
     # Build complete form to complete the claim process
     form += "<form action='student_claim_save' name='badge_claimer' id='badge_claimer' method='post'>"
     form += '<input type="hidden" name="id" value="%s" requried>' % (obj_sel_badge[0].id)
@@ -214,7 +215,7 @@ def build_badge_form(f_claim_name,f_claim_mail,f_form_text,obj_sel_badge):
     form += "<tr><td>&#160;</td></tr>"
     form += "%s" % (f_claim_evidences)
     form += "<tr><td>&#160;</td></tr>"
-    form += "<tr><td><input type='submit' name='claim-button' value='CLAIM YOUR BADGE'></td></tr>"
+    form += "<tr><td><input type='submit' name='claim-button' value='%s'></td></tr>" % claim_button
     form += "</table>"
     form += "</form>"
     return form
@@ -318,8 +319,9 @@ def get_award_result_formatted(resultdata,congratulations):
         result +='<div><a href="%s" target="_blank">%s</a></div>' % (claim_uri,claim_uri)
         result +='</div>'
     else:
+	error_award = _("Error: The award could not be created")
         result  ='<div style="color:red;">'
-        result +='<div><h1 style="color:red">Error: The award could not be created</h1></div>'
+        result +='<div><h1 style="color:red">"%s"</h1></div>' % error_award
         result +='</div>'
     return result
 
